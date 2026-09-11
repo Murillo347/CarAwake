@@ -2,8 +2,8 @@
 
 ## Como rodar o projeto
 
-1. Entre na pasta Projetico:
-cd Projetico
+1. Entre na pasta 'Projeto_CarAwake':
+cd Projeto_CarAwake
 
 2. Instale o node_modules:
 npm install
