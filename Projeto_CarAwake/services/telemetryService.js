@@ -27,12 +27,10 @@ export const startAccelerometer = async (
                 maxGForce = magnitude;
             }
 
-            // Envia o valor atual para a tela
             if (onSensorUpdate) {
                 onSensorUpdate(magnitude);
             }
 
-            // Detecta instabilidade
             if (magnitude > 2.0 && onInstabilityDetected) {
                 onInstabilityDetected();
             }
