@@ -1,4 +1,4 @@
-//PS: Os dados mostrados nas telas: home, home2, relatorio e relatorio2, são fictícios e servem apenas como exemplo por enquanto.
+//PS: Os dados nas telas: home, home2, relatorio e relatorio2, são fictícios e servem só como exemplo por enquanto.
 
 import React, { useState } from 'react';
 
@@ -18,7 +18,6 @@ export default function Relatorio2({ navigation }) {
 
         <SafeAreaView style={styles.container}>
 
-            {/* Cabeçalho */}
             <View style={styles.header}>
 
                 <Text style={styles.headerIcon}>
@@ -31,7 +30,6 @@ export default function Relatorio2({ navigation }) {
 
             </View>
 
-            {/* Estatísticas */}
             <View style={styles.statsCard}>
 
                 <View style={styles.statsHeader}>
@@ -60,7 +58,6 @@ export default function Relatorio2({ navigation }) {
 
             </View>
 
-            {/* Registrar relatório */}
             <TouchableOpacity
                 style={styles.registerButton}
                 onPress={() => setRegistrado(true)}
@@ -70,14 +67,12 @@ export default function Relatorio2({ navigation }) {
                 </Text>
             </TouchableOpacity>
 
-            {/* Mensagem */}
             {registrado && (
                 <Text style={styles.successText}>
                     Registrado com sucesso!
                 </Text>
             )}
 
-            {/* Prosseguir */}
             <TouchableOpacity
                 style={styles.continueButton}
                 onPress={() => navigation.navigate('Home2')}
@@ -121,7 +116,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
 
-    /* Cabeçalho */
     header: {
         width: '100%',
         height: 70,
@@ -147,7 +141,6 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 
-    /* Estatísticas */
     statsCard: {
         width: '76%',
         height: 177,
@@ -219,7 +212,6 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 
-    /* Registrar */
     registerButton: {
         width: 155,
         height: 37,
@@ -238,14 +230,12 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 
-    /* Mensagem */
     successText: {
         color: '#176049',
         fontSize: 11,
         marginTop: 7,
     },
 
-    /* Prosseguir */
     continueButton: {
         width: 155,
         height: 37,
