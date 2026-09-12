@@ -1,4 +1,4 @@
-//PS: Os dados mostrados nas telas: home, home2, relatorio e relatorio2, são fictícios e servem apenas como exemplo por enquanto.
+//PS: Os dados nas telas: home, home2, relatorio e relatorio2, são fictícios e servem só como exemplo por enquanto.
 
 import React from 'react';
 import {
@@ -13,7 +13,6 @@ export default function Home({ navigation }) {
     return (
         <SafeAreaView style={styles.container}>
 
-            {/* Cabeçalho */}
             <View style={styles.header}>
                 <View style={styles.logoContainer}>
                     <Text style={styles.logo}>     CarAwake</Text>
@@ -27,10 +26,9 @@ export default function Home({ navigation }) {
                 </TouchableOpacity>
             </View>
 
-            {/* Botão iniciar viagem */}<View
+            <View
                 style={styles.tripCard}>
 
-                {/* Status */}
                 <View style={styles.statusCard}>
                     <View style={styles.statusItem}>
                         <Text style={styles.statusText}>IA Facial:</Text>
@@ -43,7 +41,6 @@ export default function Home({ navigation }) {
                     </View>
                 </View>
 
-                {/* Botão */}
                 <TouchableOpacity
                     style={styles.startButton}
                     onPress={() => { navigation.navigate('Viagem') }}
@@ -53,7 +50,6 @@ export default function Home({ navigation }) {
                 </TouchableOpacity>
 
             </View>
-            {/* Histórico */}
             <View style={styles.historyCard}>
 
                 <View style={styles.historyHeader}>
@@ -128,7 +124,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
     },
 
-    /* Cabeçalho */
     header: {
         marginTop: 20,
         height: 75,
@@ -171,7 +166,6 @@ const styles = StyleSheet.create({
         fontSize: 20,
     },
 
-    /* Status */
     statusCard: {
         position: 'absolute',
         top: 0,
@@ -203,7 +197,6 @@ const styles = StyleSheet.create({
         marginLeft: 2,
     },
 
-    /* Card da viagem */
     tripCard: {
         height: 100,
         borderRadius: 12,
@@ -242,7 +235,6 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 
-    /* Histórico */
     historyCard: {
         marginTop: 40,
         marginHorizontal: 30,
