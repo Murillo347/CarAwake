@@ -9,7 +9,6 @@ export const requestCameraAccess = async () => {
       return { success: true };
     }
 
-    // Tratamento Nível Júnior: Usuário negou permanentemente
     if (!canAskAgain) {
       Alert.alert(
         'Permissão Necessária',
