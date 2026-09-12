@@ -14,7 +14,6 @@ export default function Config2({ navigation }) {
 
         <SafeAreaView style={styles.container}>
 
-            {/* Cabeçalho */}
             <View style={styles.header}>
 
                 <Text style={styles.headerIcon}>   ⚙</Text>
@@ -25,7 +24,6 @@ export default function Config2({ navigation }) {
 
             </View>
 
-            {/* Botão voltar */}
             <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => navigation.navigate('Home2')}
@@ -33,7 +31,6 @@ export default function Config2({ navigation }) {
                 <Text style={styles.backText}>←</Text>
             </TouchableOpacity>
 
-            {/* Linguagem */}
             <TouchableOpacity style={styles.optionButton}>
 
                 <Text style={styles.optionIcon}>
@@ -46,7 +43,6 @@ export default function Config2({ navigation }) {
 
             </TouchableOpacity>
 
-            {/* Modo de luz */}
             <TouchableOpacity
                 style={styles.optionButton}
                 onPress={() => navigation.navigate('Config')}
@@ -74,8 +70,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 5,
     },
 
-    /* Cabeçalho */
-
     header: {
         height: 74,
         borderWidth: 2,
@@ -99,8 +93,6 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 
-    /* Voltar */
-
     backButton: {
         width: 32,
         height: 32,
@@ -120,8 +112,6 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         marginTop: -2,
     },
-
-    /* Opções */
 
     optionButton: {
         height: 38,
