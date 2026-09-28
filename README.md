@@ -1,6 +1,6 @@
 # Projeto intedisciplinar
 
-## Como rodar o projeto
+## Como rodar o projeto (App Mobile)
 
 1. Entre na pasta 'Projeto_CarAwake':
 cd Projeto_CarAwake
