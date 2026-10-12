@@ -1,14 +1,24 @@
 # Projeto intedisciplinar
 
-## Como rodar o projeto (App Mobile)
+## Como rodar o projeto (App Mobile):
 
-1. Entre na pasta 'Projeto_CarAwake':
+1. Baixe a pasta 'Projeto_CarAwake'.
+
+2. Entre na pasta 'Projeto_CarAwake' (no terminal):
 cd Projeto_CarAwake
 
-2. Instale o node_modules:
+3. Instale o node_modules:
 npm install
 
-3. Inicie o projeto:
+4. Inicie o projeto:
 npx expo start
 
-4. Escaneie o QR code com o aplicativo de celular 'Expo Go' (recomendado para acesso aos recursos nativos) ou acesse a URL em um simulador.
+5. Escaneie o QR code com o aplicativo de celular 'Expo Go' (recomendado para acesso aos recursos nativos) ou acesse a URL em um simulador.
+
+## Como rodar o site (Web):
+
+1. Baixe a pasta 'Site_CarAwake'.
+
+2. Selecione o arquivo 'index.html'.
+
+3. Escolha o navegador de sua preferência.
