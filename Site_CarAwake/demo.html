@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarAwake - Demonstração em Tempo Real</title>
+    <link rel="stylesheet" href="css/estilo.css">
+    <!-- MediaPipe Vision Tasks para navegador -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3"></script>
+</head>
+<body>
+    <header>
+        <div class="logo-text">CAR <span>AWAKE</span></div>
+        <nav>
+            <ul class="nav-links">
+                <li><a href="index.html">Início</a></li>
+                <li><a href="sobre.html">Sobre o Projeto</a></li>
+                <li><a href="demo.html" class="active btn-nav-demo">Demonstração</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section class="demo-section">
+        <h2>Demonstração ao <span>Vivo</span></h2>
+        <p class="subtitle">Permita o acesso à câmera para visualizar o rastreio facial e os pontos de referência em tempo real.</p>
+
+        <div class="camera-container">
+            <!-- Vídeo da webcam (escondido ou sobreposto) -->
+            <video id="webcam" autoplay playsinline style="display:none;"></video>
+            <!-- Canvas onde os desenhos dos pontos faciais serão renderizados -->
+            <canvas id="output_canvas" width="640" height="480"></canvas>
+        </div>
+
+        <div id="status-box" class="status-alert">A carregar modelo de Inteligência Artificial...</div>
+    </section>
+
+    <footer>
+        <p><strong>CarAwake</strong> — ETEC Bento Quirino / BENTOTEC</p>
+    </footer>
+
+    <!-- Script de lógica da câmara e MediaPipe -->
+    <script type="module" src="js/demo.js"></script>
+</body>
+</html>
