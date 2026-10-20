@@ -37,6 +37,16 @@ header {
     align-items: center;
 }
 
+.header-logo {
+    height: 50px;
+    width: 50px;
+    border-radius: 8px;
+    object-fit: contain;
+    margin: -5px;
+    margin-bottom: -15px;
+    margin-right: 0px;
+}
+
 .logo-text {
     font-family: var(--font-title);
     font-size: 1.4rem;
@@ -214,4 +224,61 @@ footer {
     color: var(--text-gray);
     font-size: 0.9rem;
     margin-top: 80px;
+}
+
+/* ==========================================
+   HERO LAYOUT & ANIMAÇÃO SVG (CARAWAKE)
+   ========================================== */
+
+/* Ajuste da secção Hero para alinhar lado a lado */
+.hero {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 120px 8% 60px; /* Desconto para o header fixo */
+}
+
+.hero-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 50px;
+}
+
+.hero-content {
+    flex: 1;
+    max-width: 600px;
+}
+
+
+/* --- HERO VÍDEO LATERAL (QUADRADO) --- */
+.hero-video-wrapper {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.hero-video {
+    width: 100%;
+    max-width: 420px;
+    aspect-ratio: 1 / 1; /* Força o formato perfeitamente quadrado */
+    object-fit: cover;   /* Recorta o vídeo para preencher o quadrado sem distorcer */
+    border-radius: 20px;
+    border: 2px solid var(--border-color);
+    box-shadow: 0 10px 30px rgba(255, 199, 0, 0.2);
+}
+
+/* Responsividade para telemóveis */
+@media (max-width: 900px) {
+    .hero-container {
+        flex-direction: column;
+        text-align: center;
+    }
+    .hero-video {
+        max-width: 320px;
+        margin-top: 30px;
+    }
 }
