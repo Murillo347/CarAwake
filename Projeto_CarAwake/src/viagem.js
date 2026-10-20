@@ -6,6 +6,7 @@ import { Camera, useCameraDevice, useCameraPermission, useFrameProcessor } from 
 import { useFaceDetector } from 'react-native-vision-camera-face-detector';
 import { Worklets } from 'react-native-worklets-core'; 
 import * as Speech from 'expo-speech';
+import { useAudioPlayer } from 'expo-audio';
 import { startAccelerometer, stopAccelerometer, checkInstability } from '../services/telemetryService';
 
 const ALERT_LEVEL_CONFIG = {
@@ -20,36 +21,33 @@ const ALERT_LEVEL_CONFIG = {
         fullTitle: '',
         fullSubtitle: '',
         message: 'Condução monitorizada. Nenhum sinal de fadiga recente.',
-        durationMs: 0,
     },
     1: {
         name: 'NÍVEL 1: PREVENTIVO (480nm)',
         primaryColor: '#00e5ff',
         borderColor: '#00b4d8',
-        fullScreenBg: '#00b4d8',
-        fullScreenAltBg: '#0096c7',
+        fullScreenBg: 'rgba(0, 180, 216, 0.85)', // Translúcido para não bloquear 100% da câmara
+        fullScreenAltBg: 'rgba(0, 150, 199, 0.85)',
         bannerBg: '#042b38',
-        textColor: '#02161e',
-        fullTitle: 'NÍVEL 1: ALERTA PREVENTIVO',
-        fullSubtitle: 'ESTÍMULO LUMINOSO CIANO (480nm)',
-        message: 'Sinal leve de cansaço detetado. Mantenha o foco na via!',
-        durationMs: 3500,
+        textColor: '#ffffff',
+        fullTitle: 'ALERTA PREVENTIVO',
+        fullSubtitle: 'Luz Ciana de Inibição de Sono Ativa',
+        message: 'Sinal leve de cansaço detetado. Mantenha o foco!',
     },
     2: {
-        name: 'NÍVEL 2: ALERTA MODERADO (590nm)',
+        name: 'NÍVEL 2: ALERTA MODERADO',
         primaryColor: '#ffbe0b',
         borderColor: '#ff9f1c',
         fullScreenBg: '#ff9f1c',
         fullScreenAltBg: '#f77f00',
         bannerBg: '#3d2600',
         textColor: '#1f1100',
-        fullTitle: '⚠️ NÍVEL 2: FADIGA MODERADA ⚠️',
+        fullTitle: '⚠️ FADIGA MODERADA ⚠️',
         fullSubtitle: 'FREQUÊNCIA DE SONOLÊNCIA ELEVADA',
         message: 'Intervalo curto entre sinais de sono! Redobre a atenção!',
-        durationMs: 4500,
     },
     3: {
-        name: 'NÍVEL 3: RISCO CRÍTICO (MICROSSONO)',
+        name: 'NÍVEL 3: RISCO CRÍTICO',
         primaryColor: '#ff1744',
         borderColor: '#ff1744',
         fullScreenBg: '#ff1744',
@@ -59,7 +57,6 @@ const ALERT_LEVEL_CONFIG = {
         fullTitle: '🚨 PERIGO CRÍTICO DE SONO 🚨',
         fullSubtitle: 'RISCO IMINENTE DE ACIDENTE',
         message: 'REDUZA A VELOCIDADE E ENCOSTE O VEÍCULO COM SEGURANÇA!',
-        durationMs: 6500,
     },
 };
 
@@ -83,6 +80,8 @@ export default function Viagem({ navigation }) {
     const fullScreenTimerRef = useRef(null);
     const beepTimerRef = useRef(null);
     const lastGForceUpdate = useRef(0);
+
+    const alarmPlayer = useAudioPlayer(require('../assets/sounds/alarm.mp3'));
 
     const isBlinking = useRef(false);
     const blinkStartTime = useRef(0);
@@ -158,8 +157,11 @@ export default function Viagem({ navigation }) {
                 currentLevelRef.current = nextLevel;
                 setAlertLevel(nextLevel);
                 lastEventTimeRef.current = now - 10000;
+                
                 if (nextLevel === 0) {
                     stopAllStimuli();
+                } else if (nextLevel === 1) {
+                    activateFullScreenColor(1); // Reativa o azul contínuo se cair para o nível 1
                 }
                 return;
             }
@@ -172,19 +174,43 @@ export default function Viagem({ navigation }) {
         return () => clearInterval(monitorTimer);
     }, [isMonitoring]);
 
+    const playCustomAlarm = (isLooping = true, rate = 1.0, volume = 1.0) => {
+        try {
+            if (!alarmPlayer) return;
+            alarmPlayer.loop = isLooping;
+            alarmPlayer.volume = volume;
+            if (typeof alarmPlayer.setPlaybackRate === 'function') {
+                alarmPlayer.setPlaybackRate(rate);
+            }
+            if (typeof alarmPlayer.seekTo === 'function') {
+                alarmPlayer.seekTo(0);
+            }
+            alarmPlayer.play();
+        } catch (error) {}
+    };
+
+    const stopAlarmAudio = () => {
+        try {
+            if (!alarmPlayer) return;
+            alarmPlayer.pause();
+            if (typeof alarmPlayer.seekTo === 'function') {
+                alarmPlayer.seekTo(0);
+            }
+        } catch (error) {}
+    };
+
     const stopAllStimuli = () => {
         Vibration.cancel();
         if (fullScreenTimerRef.current) clearTimeout(fullScreenTimerRef.current);
         if (beepTimerRef.current) clearTimeout(beepTimerRef.current);
         setFullScreenVisible(false);
         fullScreenOpacity.setValue(0);
-        try {
-            Speech.stop();
-        } catch (e) {}
+        stopAlarmAudio();
+        try { Speech.stop(); } catch (e) {}
     };
 
+    // 📍 ALTERAÇÃO AQUI: Duração condicional do Ecrã/Mensagem
     const activateFullScreenColor = (level) => {
-        const duration = ALERT_LEVEL_CONFIG[level]?.durationMs || 4000;
         if (fullScreenTimerRef.current) clearTimeout(fullScreenTimerRef.current);
 
         setFullScreenVisible(true);
@@ -194,15 +220,18 @@ export default function Viagem({ navigation }) {
             useNativeDriver: true,
         }).start();
 
-        fullScreenTimerRef.current = setTimeout(() => {
-            Animated.timing(fullScreenOpacity, {
-                toValue: 0,
-                duration: 350,
-                useNativeDriver: true,
-            }).start(() => {
-                setFullScreenVisible(false);
-            });
-        }, duration);
+        // Nível 2 e 3 somem sozinhos após 3 Segundos. Nível 1 fica ativo contínuo.
+        if (level === 2 || level === 3) {
+            fullScreenTimerRef.current = setTimeout(() => {
+                Animated.timing(fullScreenOpacity, {
+                    toValue: 0,
+                    duration: 350,
+                    useNativeDriver: true,
+                }).start(() => {
+                    setFullScreenVisible(false);
+                });
+            }, 3000); // Exatamente 3 segundos
+        }
     };
 
     const triggerMultimodalStimulus = (level) => {
@@ -216,40 +245,20 @@ export default function Viagem({ navigation }) {
             Vibration.vibrate([0, 200, 180, 200]);
             try {
                 Speech.stop();
-                Speech.speak('Bip, bip.', {
-                    language: 'pt-BR',
-                    pitch: 1.45,
-                    rate: 1.45,
-                });
+                playCustomAlarm(true, 1.2, 0.8);
             } catch (e) {}
         } else if (level === 2) {
             Vibration.vibrate([0, 250, 120, 250, 120, 250, 250, 350]);
             try {
                 Speech.stop();
-                Speech.speak('Bip! Bip! Bip!', {
-                    language: 'pt-BR',
-                    pitch: 1.95,
-                    rate: 1.75,
-                });
-                beepTimerRef.current = setTimeout(() => {
-                    if (currentLevelRef.current === 2) {
-                        Speech.speak('Bip! Bip! Bip!', {
-                            language: 'pt-BR',
-                            pitch: 1.95,
-                            rate: 1.75,
-                        });
-                    }
-                }, 1350);
+                playCustomAlarm(true, 1.6, 1.0);
             } catch (e) {}
         } else if (level === 3) {
             Vibration.vibrate([0, 600, 120, 600, 120, 800, 150, 600]);
             try {
                 Speech.stop();
-                Speech.speak('Bip! Bip!', {
-                    language: 'pt-BR',
-                    pitch: 1.9,
-                    rate: 1.7,
-                });
+                playCustomAlarm(true, 2.0, 1.0);
+
                 beepTimerRef.current = setTimeout(() => {
                     if (currentLevelRef.current === 3) {
                         Speech.speak(
@@ -257,7 +266,7 @@ export default function Viagem({ navigation }) {
                             { language: 'pt-BR', pitch: 1.05, rate: 1.08 }
                         );
                     }
-                }, 650);
+                }, 900);
             } catch (e) {}
         }
     };
@@ -312,9 +321,7 @@ export default function Viagem({ navigation }) {
 
     const handleStart = async () => {
         let granted = hasPermission;
-        if (!granted) {
-            granted = await requestPermission();
-        }
+        if (!granted) granted = await requestPermission();
 
         if (granted) {
             baselineRef.current = { landmarkRatio: 0, noseChinRatio: 0, boxRatio: 0, initialized: false };
@@ -339,16 +346,13 @@ export default function Viagem({ navigation }) {
             if (started) {
                 setIsMonitoring(true);
             } else {
-                Alert.alert('Erro', 'O acelerômetro não está disponível.');
+                Alert.alert('Erro', 'O acelerómetro não está disponível.');
             }
         } else {
             Alert.alert(
                 'Permissão Negada', 
-                'O Car Awake precisa da câmara para monitorizar o sono. Por favor, ative a permissão nas definições.',
-                [
-                    { text: 'Cancelar', style: 'cancel' },
-                    { text: 'Abrir Configurações', onPress: () => Linking.openSettings() }
-                ]
+                'Ative a permissão da câmara nas definições para continuar.',
+                [{ text: 'Cancelar', style: 'cancel' }, { text: 'Definições', onPress: () => Linking.openSettings() }]
             );
         }
     };
@@ -361,12 +365,11 @@ export default function Viagem({ navigation }) {
         setIsUnstable(false);
         setAlertLevel(0);
         currentLevelRef.current = 0;
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
         Alert.alert(
             'Monitoramento Encerrado',
             hadInstability 
-                ? 'O sistema registrou momentos de instabilidade física intensa.' 
+                ? 'O sistema registou momentos de instabilidade física intensa.' 
                 : 'Viagem finalizada em segurança.'
         );
     };
@@ -411,13 +414,13 @@ export default function Viagem({ navigation }) {
 
             let mouthOpen = false;
             if (!isSmiling) {
-                if (contourRatio > 0.20) {
+                if (contourRatio > 0.28) {
                     mouthOpen = true;
-                } else if (landmarkRatio > 0 && (landmarkRatio > 0.36 || landmarkRatio > base.landmarkRatio * 1.28)) {
+                } else if (landmarkRatio > 0 && (landmarkRatio > 0.42 || landmarkRatio > base.landmarkRatio * 1.35)) {
                     mouthOpen = true;
-                } else if (noseChinRatio > 0 && noseChinRatio > base.noseChinRatio * 1.18) {
+                } else if (noseChinRatio > 0 && noseChinRatio > base.noseChinRatio * 1.25) {
                     mouthOpen = true;
-                } else if (landmarkRatio === 0 && contourRatio === 0 && boxRatio > base.boxRatio * 1.08) {
+                } else if (landmarkRatio === 0 && contourRatio === 0 && boxRatio > base.boxRatio * 1.15) {
                     mouthOpen = true;
                 }
             }
@@ -432,7 +435,7 @@ export default function Viagem({ navigation }) {
                 if (!isYawning.current) {
                     isYawning.current = true;
                     yawnStartTime.current = now;
-                } else if (!yawnCounted.current && (now - yawnStartTime.current > 700)) {
+                } else if (!yawnCounted.current && (now - yawnStartTime.current > 1200)) {
                     setYawns(prev => prev + 1);
                     yawnCounted.current = true;
                     registerDrowsinessEvent('YAWN');
@@ -450,7 +453,6 @@ export default function Viagem({ navigation }) {
         
         if (faces && faces.length > 0) {
             const face = faces[0];
-            
             const leftEye = typeof face.leftEyeOpenProbability === 'number' ? face.leftEyeOpenProbability : 1.0;
             const rightEye = typeof face.rightEyeOpenProbability === 'number' ? face.rightEyeOpenProbability : 1.0;
             const smileProb = typeof face.smilingProbability === 'number' ? face.smilingProbability : 0.0;
@@ -460,9 +462,7 @@ export default function Viagem({ navigation }) {
 
             const dist2D = (p1, p2) => {
                 if (!p1 || !p2 || typeof p1.x !== 'number' || typeof p2.x !== 'number') return 0;
-                const dx = p1.x - p2.x;
-                const dy = p1.y - p2.y;
-                return Math.sqrt(dx * dx + dy * dy);
+                return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
             };
 
             const lm = face.landmarks || {};
@@ -478,10 +478,7 @@ export default function Viagem({ navigation }) {
             const upperLipArr = ct.UPPER_LIP_BOTTOM || ct.upperLipBottom;
             const lowerLipArr = ct.LOWER_LIP_TOP || ct.lowerLipTop;
 
-            let contourRatio = 0;
-            let landmarkRatio = 0;
-            let noseChinRatio = 0;
-            let boxRatio = 0;
+            let contourRatio = 0; let landmarkRatio = 0; let noseChinRatio = 0; let boxRatio = 0;
 
             const mouthWidth = dist2D(mouthLeft, mouthRight);
 
@@ -490,18 +487,12 @@ export default function Viagem({ navigation }) {
                 const lowerMid = lowerLipArr[Math.floor(lowerLipArr.length / 2)];
                 const lipOpening = dist2D(upperMid, lowerMid);
                 const refWidth = mouthWidth > 0 ? mouthWidth : dist2D(upperLipArr[0], upperLipArr[upperLipArr.length - 1]);
-                if (refWidth > 0) {
-                    contourRatio = lipOpening / refWidth;
-                }
+                if (refWidth > 0) contourRatio = lipOpening / refWidth;
             }
 
             if (mouthLeft && mouthRight && mouthBottom && mouthWidth > 0) {
-                const mouthMid = {
-                    x: (mouthLeft.x + mouthRight.x) / 2,
-                    y: (mouthLeft.y + mouthRight.y) / 2
-                };
-                const lowerJawDrop = dist2D(mouthMid, mouthBottom);
-                landmarkRatio = lowerJawDrop / mouthWidth;
+                const mouthMid = { x: (mouthLeft.x + mouthRight.x) / 2, y: (mouthLeft.y + mouthRight.y) / 2 };
+                landmarkRatio = dist2D(mouthMid, mouthBottom) / mouthWidth;
             }
 
             const eyeDist = dist2D(leftEyePt, rightEyePt);
@@ -510,9 +501,7 @@ export default function Viagem({ navigation }) {
             }
 
             if (face.bounds && face.bounds.width > 0 && face.bounds.height > 0) {
-                const maxDim = Math.max(face.bounds.width, face.bounds.height);
-                const minDim = Math.min(face.bounds.width, face.bounds.height);
-                boxRatio = maxDim / minDim;
+                boxRatio = Math.max(face.bounds.width, face.bounds.height) / Math.min(face.bounds.width, face.bounds.height);
             }
             
             processFaceEvents(eyesClosed, isSmiling, contourRatio, landmarkRatio, noseChinRatio, boxRatio);
@@ -522,20 +511,21 @@ export default function Viagem({ navigation }) {
     const activeConfig = ALERT_LEVEL_CONFIG[alertLevel];
 
     return (
-        <SafeAreaView style={styles.container}>
+        <View style={styles.mainContainer}>
             {!isMonitoring ? (
-                <View style={styles.centerBox}>
+                <SafeAreaView style={styles.centerBox}>
                     <Text style={styles.title}>Viagem</Text>
-                    <Text style={styles.subtitle}>Posicione o celular no suporte para iniciar.</Text>
+                    <Text style={styles.subtitle}>Posicione o telemóvel no suporte para iniciar.</Text>
                     <TouchableOpacity style={styles.startButton} onPress={handleStart}>
-                        <Text style={styles.buttonText}>INICIAR MONITORAMENTO</Text>
+                        <Text style={styles.buttonText}>INICIAR MONITORIZAÇÃO</Text>
                     </TouchableOpacity>
-                </View>
+                </SafeAreaView>
             ) : (
                 <View style={styles.cameraContainer}>
+                    {/* CÂMERA SEMPRE ATIVA NO FUNDO */}
                     {device != null && (
                         <Camera
-                            style={styles.camera}
+                            style={StyleSheet.absoluteFill}
                             device={device}
                             isActive={true}
                             frameProcessor={frameProcessor}
@@ -543,226 +533,118 @@ export default function Viagem({ navigation }) {
                         />
                     )}
 
-                    <View
-                        style={[
-                            styles.topNeuroBanner,
-                            {
-                                backgroundColor: activeConfig.bannerBg,
-                                borderColor: activeConfig.borderColor,
-                            },
-                        ]}
-                    >
-                        <Text style={[styles.neuroLevelTitle, { color: activeConfig.primaryColor }]}>
-                            {activeConfig.name}
-                        </Text>
-                        <Text style={styles.neuroMessageText}>{activeConfig.message}</Text>
-                        <View style={styles.temporalRow}>
-                            <Text style={styles.temporalText}>
-                                FREQUÊNCIA: {eventsPerMin} ev/min
-                            </Text>
-                            <Text style={styles.temporalText}>
-                                INTERVALO (Δt): {lastIntervalSec !== null ? `${lastIntervalSec.toFixed(1)}s` : '--'}
-                            </Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.hud}>
-                        <View style={styles.metricsContainer}>
-                            <View style={[styles.metricBox, { borderColor: activeConfig.borderColor }]}>
-                                <Text style={styles.metricTitle}>ESTABILIDADE</Text>
-                                <Text style={[styles.metricValue, { color: activeConfig.primaryColor }]}>
-                                    {gForce.toFixed(2)} G
-                                </Text>
-                            </View>
-                            <View style={[styles.metricBox, { borderColor: activeConfig.borderColor }]}>
-                                <Text style={styles.metricTitle}>PISCADAS L.</Text>
-                                <Text style={[styles.metricValue, { color: activeConfig.primaryColor }]}>
-                                    {longBlinks}
-                                </Text>
-                            </View>
-                            <View style={[styles.metricBox, { borderColor: activeConfig.borderColor }]}>
-                                <Text style={styles.metricTitle}>BOCEJOS</Text>
-                                <Text style={[styles.metricValue, { color: activeConfig.primaryColor }]}>
-                                    {yawns}
-                                </Text>
-                            </View>
-                        </View>
-
-                        {isUnstable && (
-                            <View style={styles.warningBox}>
-                                <Text style={styles.warningText}>⚠️ INSTABILIDADE DETECTADA ⚠️</Text>
-                                <Text style={styles.warningSubText}>Movimento brusco detectado no veículo</Text>
-                            </View>
-                        )}
-
-                        <TouchableOpacity style={styles.stopButton} onPress={handleStop}>
-                            <Text style={styles.buttonText}>ENCERRAR MONITORAMENTO</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.reportButton} onPress={() => navigation.navigate('Relatorio')}>
-                            <Text style={styles.buttonText}>RELATÓRIO</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {fullScreenVisible && alertLevel > 0 && (
-                        <Animated.View
+                    {/* OVERLAY DE COR DEPENDENTE DA VARIÁVEL fullScreenVisible */}
+                    {alertLevel > 0 && fullScreenVisible && (
+                        <View
                             style={[
-                                styles.fullScreenAlertContainer,
+                                StyleSheet.absoluteFill,
                                 {
                                     backgroundColor: flashActive
                                         ? activeConfig.fullScreenAltBg
                                         : activeConfig.fullScreenBg,
-                                    opacity: fullScreenOpacity,
+                                    zIndex: 1,
                                 },
                             ]}
-                        >
-                            <View style={styles.fullScreenContent}>
-                                <Text style={[styles.fullScreenTitle, { color: activeConfig.textColor }]}>
-                                    {activeConfig.fullTitle}
-                                </Text>
-                                <Text style={[styles.fullScreenSubtitle, { color: activeConfig.textColor }]}>
-                                    {activeConfig.fullSubtitle}
-                                </Text>
-                                <Text style={[styles.fullScreenMessage, { color: activeConfig.textColor }]}>
-                                    {activeConfig.message}
-                                </Text>
+                        />
+                    )}
 
-                                <View style={styles.fullScreenMetricsRow}>
-                                    <View style={styles.fullScreenMetricPill}>
-                                        <Text style={styles.fullScreenMetricLabel}>PISCADAS L.</Text>
-                                        <Text style={styles.fullScreenMetricVal}>{longBlinks}</Text>
+                    {/* INTERFACE SOBREPOSTA */}
+                    <SafeAreaView style={styles.safeUI} pointerEvents="box-none">
+                        
+                        <View style={[styles.topNeuroBanner, { backgroundColor: activeConfig.bannerBg, borderColor: activeConfig.borderColor }]}>
+                            <Text style={[styles.neuroLevelTitle, { color: activeConfig.primaryColor }]}>{activeConfig.name}</Text>
+                            <Text style={styles.neuroMessageText}>{activeConfig.message}</Text>
+                            <View style={styles.temporalRow}>
+                                <Text style={styles.temporalText}>FREQUÊNCIA: {eventsPerMin} ev/min</Text>
+                                <Text style={styles.temporalText}>INTERVALO (Δt): {lastIntervalSec !== null ? `${lastIntervalSec.toFixed(1)}s` : '--'}</Text>
+                            </View>
+                        </View>
+
+                        {/* 📍 ALTERAÇÃO AQUI: Novo grupo inferior para empilhar o Alerta Gigante em cima das Métricas */}
+                        <View style={styles.bottomSectionUI} pointerEvents="box-none">
+                            
+                            {fullScreenVisible && alertLevel > 0 && (
+                                <Animated.View pointerEvents="none" style={[styles.alertMessageWrapper, { opacity: fullScreenOpacity }]}>
+                                    <Text style={[styles.fullScreenTitle, { color: activeConfig.textColor }]}>{activeConfig.fullTitle}</Text>
+                                    {activeConfig.fullSubtitle ? <Text style={[styles.fullScreenSubtitle, { color: activeConfig.textColor }]}>{activeConfig.fullSubtitle}</Text> : null}
+                                    <Text style={[styles.fullScreenMessage, { color: activeConfig.textColor }]}>{activeConfig.message}</Text>
+                                </Animated.View>
+                            )}
+
+                            <View style={styles.hud} pointerEvents="box-none">
+                                <View style={styles.metricsContainer}>
+                                    <View style={[styles.metricBox, { borderColor: activeConfig.borderColor }]}>
+                                        <Text style={styles.metricTitle}>ESTABILIDADE</Text>
+                                        <Text style={[styles.metricValue, { color: activeConfig.primaryColor }]}>{gForce.toFixed(2)} G</Text>
                                     </View>
-                                    <View style={styles.fullScreenMetricPill}>
-                                        <Text style={styles.fullScreenMetricLabel}>BOCEJOS</Text>
-                                        <Text style={styles.fullScreenMetricVal}>{yawns}</Text>
+                                    <View style={[styles.metricBox, { borderColor: activeConfig.borderColor }]}>
+                                        <Text style={styles.metricTitle}>PISCADAS L.</Text>
+                                        <Text style={[styles.metricValue, { color: activeConfig.primaryColor }]}>{longBlinks}</Text>
                                     </View>
-                                    <View style={styles.fullScreenMetricPill}>
-                                        <Text style={styles.fullScreenMetricLabel}>INTERVALO</Text>
-                                        <Text style={styles.fullScreenMetricVal}>
-                                            {lastIntervalSec !== null ? `${lastIntervalSec.toFixed(1)}s` : '--'}
-                                        </Text>
+                                    <View style={[styles.metricBox, { borderColor: activeConfig.borderColor }]}>
+                                        <Text style={styles.metricTitle}>BOCEJOS</Text>
+                                        <Text style={[styles.metricValue, { color: activeConfig.primaryColor }]}>{yawns}</Text>
                                     </View>
                                 </View>
+
+                                {isUnstable && (
+                                    <View style={styles.warningBox}>
+                                        <Text style={styles.warningText}>⚠️ INSTABILIDADE DETETADA ⚠️</Text>
+                                        <Text style={styles.warningSubText}>Movimento brusco detetado no veículo</Text>
+                                    </View>
+                                )}
+
+                                <TouchableOpacity style={styles.stopButton} onPress={handleStop}>
+                                    <Text style={styles.buttonText}>ENCERRAR MONITORIZAÇÃO</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity style={styles.reportButton} onPress={() => navigation.navigate('Relatorio')}>
+                                    <Text style={styles.buttonText}>RELATÓRIO</Text>
+                                </TouchableOpacity>
                             </View>
-                        </Animated.View>
-                    )}
+                        </View>
+                    </SafeAreaView>
                 </View>
             )}
-        </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#03050d', alignItems: 'center' },
+    mainContainer: { flex: 1, backgroundColor: '#03050d' },
     centerBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     title: { color: '#ffffff', fontSize: 24, fontWeight: '600', marginBottom: 15 },
     subtitle: { color: '#aeb5c2', fontSize: 13, marginBottom: 30, textAlign: 'center' },
     cameraContainer: { flex: 1, width: '100%' },
-    camera: { flex: 1 },
-    fullScreenAlertContainer: {
-        ...StyleSheet.absoluteFillObject,
-        zIndex: 10,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 24,
-    },
-    fullScreenContent: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '100%',
-    },
-    fullScreenTitle: {
-        fontSize: 28,
-        fontWeight: '900',
-        textAlign: 'center',
-        marginBottom: 10,
-        letterSpacing: 0.8,
-    },
-    fullScreenSubtitle: {
-        fontSize: 14,
-        fontWeight: '800',
-        textAlign: 'center',
-        marginBottom: 20,
-        opacity: 0.9,
-        letterSpacing: 1,
-    },
-    fullScreenMessage: {
-        fontSize: 20,
-        fontWeight: '700',
-        textAlign: 'center',
-        lineHeight: 28,
-        marginBottom: 35,
-    },
-    fullScreenMetricsRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        width: '100%',
-    },
-    fullScreenMetricPill: {
-        backgroundColor: 'rgba(0, 0, 0, 0.35)',
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-        minWidth: 95,
-    },
-    fullScreenMetricLabel: {
-        color: '#ffffff',
-        fontSize: 10,
-        fontWeight: '700',
-        opacity: 0.85,
-    },
-    fullScreenMetricVal: {
-        color: '#ffffff',
-        fontSize: 22,
-        fontWeight: '900',
-        marginTop: 4,
-    },
+    safeUI: { flex: 1, zIndex: 2, justifyContent: 'space-between' },
+    
     topNeuroBanner: {
-        position: 'absolute',
-        top: 15,
-        alignSelf: 'center',
-        width: '92%',
-        borderRadius: 10,
-        borderWidth: 1.5,
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        alignItems: 'center',
-        zIndex: 3,
+        alignSelf: 'center', width: '92%', borderRadius: 10, borderWidth: 1.5,
+        paddingVertical: 10, paddingHorizontal: 12, alignItems: 'center', marginTop: 15,
     },
-    neuroLevelTitle: {
-        fontSize: 13,
-        fontWeight: '700',
-        letterSpacing: 0.5,
-    },
-    neuroMessageText: {
-        color: '#ffffff',
-        fontSize: 11,
-        textAlign: 'center',
-        marginTop: 4,
-    },
-    temporalRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        width: '100%',
-        marginTop: 8,
-        paddingTop: 6,
-        borderTopWidth: 0.5,
-        borderTopColor: 'rgba(255,255,255,0.2)',
-    },
-    temporalText: {
-        color: '#d0d7e2',
-        fontSize: 10,
-        fontWeight: '600',
-    },
-    hud: { position: 'absolute', bottom: 30, width: '100%', alignItems: 'center', zIndex: 3 },
+    neuroLevelTitle: { fontSize: 13, fontWeight: '700', letterSpacing: 0.5 },
+    neuroMessageText: { color: '#ffffff', fontSize: 11, textAlign: 'center', marginTop: 4 },
+    temporalRow: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 8, paddingTop: 6, borderTopWidth: 0.5, borderTopColor: 'rgba(255,255,255,0.2)' },
+    temporalText: { color: '#d0d7e2', fontSize: 10, fontWeight: '600' },
+    
+    // Contêiner Inferior que agrupa os Textos Gigantes e o HUD
+    bottomSectionUI: { width: '100%', justifyContent: 'flex-end', marginBottom: 20 },
+    
+    alertMessageWrapper: { width: '100%', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15 },
+    fullScreenTitle: { fontSize: 26, fontWeight: '900', textAlign: 'center', marginBottom: 8, letterSpacing: 0.8 },
+    fullScreenSubtitle: { fontSize: 13, fontWeight: '800', textAlign: 'center', marginBottom: 15, opacity: 0.9, letterSpacing: 1 },
+    fullScreenMessage: { fontSize: 18, fontWeight: '700', textAlign: 'center', lineHeight: 26 },
+
+    hud: { width: '100%', alignItems: 'center' },
     metricsContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '90%', marginBottom: 15 },
-    metricBox: { backgroundColor: 'rgba(24, 27, 36, 0.92)', borderWidth: 1.5, borderColor: '#565b68', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, alignItems: 'center', flex: 1, marginHorizontal: 3 },
+    metricBox: { backgroundColor: 'rgba(24, 27, 36, 0.92)', borderWidth: 1.5, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, alignItems: 'center', flex: 1, marginHorizontal: 3 },
     metricTitle: { color: '#7f9cad', fontSize: 10, fontWeight: '600' },
-    metricValue: { color: '#6ec4eb', fontSize: 20, fontWeight: '600', marginTop: 2 },
+    metricValue: { fontSize: 20, fontWeight: '600', marginTop: 2 },
+    
     warningBox: { backgroundColor: '#303543', borderWidth: 1, borderColor: '#e5d600', borderRadius: 8, padding: 10, marginBottom: 15, alignItems: 'center', width: '90%' },
     warningText: { color: '#e5d600', fontSize: 13, fontWeight: '600' },
     warningSubText: { color: '#ffffff', fontSize: 11, marginTop: 4 },
+    
     startButton: { width: 200, height: 40, borderRadius: 8, backgroundColor: '#303543', borderWidth: 1, borderColor: '#5d6678', justifyContent: 'center', alignItems: 'center' },
     stopButton: { width: 220, height: 40, borderRadius: 8, backgroundColor: '#303543', borderWidth: 1, borderColor: '#8c4b4b', justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
     reportButton: { width: 200, height: 40, borderRadius: 8, backgroundColor: '#303543', borderWidth: 1, borderColor: '#5d6678', justifyContent: 'center', alignItems: 'center' },

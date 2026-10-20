@@ -1,310 +1,441 @@
-//PS: Os dados nas telas: home, home2, relatorio e relatorio2, são fictícios e servem só como exemplo por enquanto.
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
     SafeAreaView,
+    StatusBar,
 } from 'react-native';
 
+// ============================================================================
+// MOTOR DE TEMA GLOBAL (Sincroniza Modo Escuro e Claro entre todas as telas)
+// ============================================================================
+if (typeof global.__CAR_AWAKE_THEME__ === 'undefined') {
+    global.__CAR_AWAKE_THEME__ = 'dark';
+    global.__CAR_AWAKE_LISTENERS__ = new Set();
+}
+
+function useAppTheme() {
+    const [themeMode, setThemeMode] = useState(global.__CAR_AWAKE_THEME__);
+
+    useEffect(() => {
+        const listener = (newTheme) => setThemeMode(newTheme);
+        global.__CAR_AWAKE_LISTENERS__.add(listener);
+        return () => global.__CAR_AWAKE_LISTENERS__.delete(listener);
+    }, []);
+
+    const toggleTheme = () => {
+        const next = global.__CAR_AWAKE_THEME__ === 'dark' ? 'light' : 'dark';
+        global.__CAR_AWAKE_THEME__ = next;
+        global.__CAR_AWAKE_LISTENERS__.forEach((fn) => fn(next));
+    };
+
+    const isDark = themeMode === 'dark';
+
+    const colors = isDark
+        ? {
+              bg: '#09090B',
+              surface: '#121215',
+              surfaceElevated: '#18181C',
+              border: '#27272A',
+              textPrimary: '#FAFAFA',
+              textSecondary: '#A1A1AA',
+              textMuted: '#52525B',
+              accentBg: '#FAFAFA',
+              accentText: '#09090B',
+              statusDot: '#FAFAFA',
+          }
+        : {
+              bg: '#F4F4F5',
+              surface: '#FFFFFF',
+              surfaceElevated: '#FAFAFA',
+              border: '#E4E4E7',
+              textPrimary: '#09090B',
+              textSecondary: '#52525B',
+              textMuted: '#A1A1AA',
+              accentBg: '#09090B',
+              accentText: '#FAFAFA',
+              statusDot: '#09090B',
+          };
+
+    return { isDark, colors, toggleTheme };
+}
+
 export default function Home({ navigation }) {
+    const { isDark, colors } = useAppTheme();
+
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+            <StatusBar
+                barStyle={isDark ? 'light-content' : 'dark-content'}
+                backgroundColor={colors.bg}
+            />
 
-            <View style={styles.header}>
-                <View style={styles.logoContainer}>
-                    <Text style={styles.logo}>     CarAwake</Text>
-                    <View style={styles.onlineDot} />
-                </View>
-
-                <TouchableOpacity
-                    style={styles.settingsButton}
-                    onPress={() => navigation.navigate('Config')}>
-                    <Text style={styles.settings}>⚙</Text>
-                </TouchableOpacity>
-            </View>
-
-            <View
-                style={styles.tripCard}>
-
-                <View style={styles.statusCard}>
-                    <View style={styles.statusItem}>
-                        <Text style={styles.statusText}>IA Facial:</Text>
-                        <Text style={styles.activeText}>● Ativada</Text>
+            <View style={styles.contentWrapper}>
+                {/* CABEÇALHO MINIMALISTA */}
+                <View style={[styles.header, { borderBottomColor: colors.border }]}>
+                    <View>
+                        <Text style={[styles.brandKicker, { color: colors.textMuted }]}>
+                            TELEMETRIA NEURAL // V2.4
+                        </Text>
+                        <View style={styles.brandRow}>
+                            <Text style={[styles.logo, { color: colors.textPrimary }]}>
+                                CARAWAKE
+                            </Text>
+                            <View
+                                style={[
+                                    styles.liveIndicator,
+                                    { backgroundColor: colors.textPrimary },
+                                ]}
+                            />
+                        </View>
                     </View>
 
-                    <View style={styles.statusItem}>
-                        <Text style={styles.statusText}>Localização:</Text>
-                        <Text style={styles.activeText}>● Ativada</Text>
-                    </View>
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        style={[
+                            styles.configButton,
+                            {
+                                backgroundColor: colors.surface,
+                                borderColor: colors.border,
+                            },
+                        ]}
+                        onPress={() => navigation.navigate('Config')}
+                    >
+                        <Text style={[styles.configButtonText, { color: colors.textPrimary }]}>
+                            AJUSTES
+                        </Text>
+                    </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity
-                    style={styles.startButton}
-                    onPress={() => { navigation.navigate('Viagem') }}
+                {/* MÓDULO PRINCIPAL DE OPERAÇÃO */}
+                <View
+                    style={[
+                        styles.heroCard,
+                        {
+                            backgroundColor: colors.surface,
+                            borderColor: colors.border,
+                        },
+                    ]}
                 >
-                    <Text style={styles.play}>▶</Text>
-                    <Text style={styles.startText}>INICIAR VIAGEM</Text>
-                </TouchableOpacity>
+                    <View
+                        style={[
+                            styles.telemetryStrip,
+                            { borderBottomColor: colors.border },
+                        ]}
+                    >
+                        <View style={styles.statusItem}>
+                            <View
+                                style={[
+                                    styles.statusDot,
+                                    { backgroundColor: colors.statusDot },
+                                ]}
+                            />
+                            <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>
+                                IA FACIAL
+                            </Text>
+                            <Text style={[styles.statusValue, { color: colors.textPrimary }]}>
+                                ATIVA
+                            </Text>
+                        </View>
 
-            </View>
-            <View style={styles.historyCard}>
+                        <View
+                            style={[
+                                styles.verticalDivider,
+                                { backgroundColor: colors.border },
+                            ]}
+                        />
 
-                <View style={styles.historyHeader}>
-                    <Text style={styles.historyTitle}>Histórico semanal</Text>
-                    <Text style={styles.arrow}>▼</Text>
+                        <View style={styles.statusItem}>
+                            <View
+                                style={[
+                                    styles.statusDot,
+                                    { backgroundColor: colors.statusDot },
+                                ]}
+                            />
+                            <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>
+                                GPS / INÉRCIA
+                            </Text>
+                            <Text style={[styles.statusValue, { color: colors.textPrimary }]}>
+                                ATIVO
+                            </Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.heroBody}>
+                        <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
+                            Sistemas óticos prontos para leitura ocular e prevenção de microssono em tempo real.
+                        </Text>
+
+                        <TouchableOpacity
+                            activeOpacity={0.85}
+                            style={[
+                                styles.primaryActionButton,
+                                { backgroundColor: colors.accentBg },
+                            ]}
+                            onPress={() => navigation.navigate('Viagem')}
+                        >
+                            <Text
+                                style={[
+                                    styles.primaryActionText,
+                                    { color: colors.accentText },
+                                ]}
+                            >
+                                INICIAR VIAGEM
+                            </Text>
+                            <Text
+                                style={[
+                                    styles.primaryActionArrow,
+                                    { color: colors.accentText },
+                                ]}
+                            >
+                                →
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
-                <View style={styles.statsContainer}>
+                {/* HISTÓRICO SEMANAL EM BENTO GRID ARQUITETÔNICO */}
+                <View style={styles.sectionHeader}>
+                    <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                        HISTÓRICO SEMANAL
+                    </Text>
+                    <Text style={[styles.sectionMeta, { color: colors.textMuted }]}>
+                        ÚLTIMOS 7 DIAS
+                    </Text>
+                </View>
 
-                    <Stat
-                        title="Viagens"
+                <View
+                    style={[
+                        styles.bentoGrid,
+                        {
+                            backgroundColor: colors.border,
+                            borderColor: colors.border,
+                        },
+                    ]}
+                >
+                    <StatCell
+                        title="VIAGENS"
                         value="17"
-                        color="#54a9d4"
+                        unit="TOTAL"
+                        colors={colors}
                     />
-
-                    <Stat
-                        title="Quilometragem"
+                    <StatCell
+                        title="DISTÂNCIA"
                         value="129.6"
-                        color="#54a9d4"
+                        unit="KM"
+                        colors={colors}
                     />
-
-                    <Stat
-                        title="Tempo (h)"
+                    <StatCell
+                        title="TEMPO ATIVO"
                         value="08:31"
-                        color="#54a9d4"
+                        unit="HRS"
+                        colors={colors}
                     />
-
-                    <Stat
-                        title="Bocejos"
-                        value="9"
-                        color="#e5d600"
+                    <StatCell
+                        title="BOCEJOS"
+                        value="09"
+                        unit="EVENTOS"
+                        colors={colors}
                     />
-
-                    <Stat
-                        title="Piscadas longas"
-                        value="3"
-                        color="#64b45b"
+                    <StatCell
+                        title="PISCADAS L."
+                        value="03"
+                        unit="ALERTAS"
+                        colors={colors}
                     />
-
-                    <Stat
-                        title="Pausas sugeridas"
-                        value="1"
-                        color="#64b45b"
+                    <StatCell
+                        title="PAUSAS"
+                        value="01"
+                        unit="SUGERIDA"
+                        colors={colors}
                     />
-
                 </View>
             </View>
-
         </SafeAreaView>
     );
 }
 
-function Stat({ title, value, color }) {
+function StatCell({ title, value, unit, colors }) {
     return (
-        <View style={styles.stat}>
-            <Text style={styles.statTitle}>{title}</Text>
-
-            <View style={styles.statBox}>
-                <Text style={[styles.statValue, { color }]}>
-                    {value}
-                </Text>
-            </View>
+        <View style={[styles.statCell, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.statTitle, { color: colors.textSecondary }]}>
+                {title}
+            </Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+                {value}
+            </Text>
+            <Text style={[styles.statUnit, { color: colors.textMuted }]}>
+                {unit}
+            </Text>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-
     container: {
         flex: 1,
-        backgroundColor: '#03050d',
-        paddingHorizontal: 20,
     },
-
+    contentWrapper: {
+        flex: 1,
+        paddingHorizontal: 24,
+        paddingTop: 12,
+    },
     header: {
-        marginTop: 20,
-        height: 75,
+        paddingVertical: 20,
+        borderBottomWidth: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
     },
-
-    logoContainer: {
-        marginHorizontal: 40,
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-
-    logo: {
-        color: '#f1f1f1',
-        fontSize: 30,
-        fontWeight: '700',
-    },
-
-    onlineDot: {
-        width: 7,
-        height: 7,
-        borderRadius: 5,
-        backgroundColor: '#65bd65',
-        marginLeft: 5,
-    },
-
-    settingsButton: {
-        width: 30,
-        height: 30,
-        borderRadius: 6,
-        backgroundColor: '#343b45',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
-    settings: {
-        color: '#cbd0d6',
-        fontSize: 20,
-    },
-
-    statusCard: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 20,
-        borderWidth: 1,
-        borderColor: '#606673',
-        borderRadius: 10,
-        backgroundColor: '#171a23',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-
-    statusItem: {
-        flexDirection: 'row',
-        marginHorizontal: 5,
-    },
-
-    statusText: {
-        color: '#b9bec8',
-        fontSize: 10,
-    },
-
-    activeText: {
-        color: '#60b960',
-        fontSize: 10,
-        marginLeft: 2,
-    },
-
-    tripCard: {
-        height: 100,
-        borderRadius: 12,
-        backgroundColor: '#181b24',
-        borderWidth: 1,
-        borderColor: '#565b68',
-        marginTop: 60,
-        marginBottom: 10,
-        marginHorizontal: 30,
-        alignItems: 'center',
-        position: 'relative',
-    },
-
-    startButton: {
-        width: '80%',
-        height: 30,
-        marginVertical: 40,
-        borderRadius: 6,
-        backgroundColor: '#303543',
-        borderWidth: 1,
-        borderColor: '#5d6678',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-
-    play: {
-        color: '#7ee5df',
-        fontSize: 9,
-        marginRight: 8,
-    },
-
-    startText: {
-        color: '#ffffff',
+    brandKicker: {
         fontSize: 10,
         fontWeight: '600',
+        letterSpacing: 1.8,
+        marginBottom: 4,
     },
-
-    historyCard: {
-        marginTop: 40,
-        marginHorizontal: 30,
-        backgroundColor: '#181b24',
-        borderRadius: 15,
+    brandRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    logo: {
+        fontSize: 26,
+        fontWeight: '800',
+        letterSpacing: -0.8,
+    },
+    liveIndicator: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        marginLeft: 8,
+    },
+    configButton: {
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#565b68',
-        paddingBottom: 10,
+    },
+    configButtonText: {
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 1.2,
+    },
+    heroCard: {
+        marginTop: 28,
+        borderRadius: 12,
+        borderWidth: 1,
         overflow: 'hidden',
     },
-
-    historyHeader: {
-        height: 29,
-        backgroundColor: '#2b2e38',
+    telemetryStrip: {
+        height: 44,
         borderBottomWidth: 1,
-        borderBottomColor: '#555b68',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 15,
-        borderRadius: 20,
+        paddingHorizontal: 16,
     },
-
-    historyTitle: {
-        color: '#6ec4eb',
+    statusItem: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    statusDot: {
+        width: 5,
+        height: 5,
+        borderRadius: 2.5,
+        marginRight: 8,
+    },
+    statusLabel: {
         fontSize: 10,
         fontWeight: '600',
+        letterSpacing: 1,
+        marginRight: 6,
     },
-
-    arrow: {
-        color: '#6bc3e8',
+    statusValue: {
         fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 1,
     },
-
-    statsContainer: {
-
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        paddingHorizontal: 8,
-        paddingTop: 10,
+    verticalDivider: {
+        width: 1,
+        height: '60%',
     },
-
-    stat: {
-        width: '31%',
-        alignItems: 'center',
-        marginBottom: 8,
+    heroBody: {
+        padding: 20,
     },
-
-    statTitle: {
-        color: '#7f9cad',
-        fontSize: 9,
-        marginBottom: 4,
-        textAlign: 'center',
+    heroSubtitle: {
+        fontSize: 13,
+        lineHeight: 20,
+        marginBottom: 20,
+        fontWeight: '400',
     },
-
-    statBox: {
-        width: '100%',
-        height: 40,
+    primaryActionButton: {
+        height: 54,
         borderRadius: 8,
-        backgroundColor: '#292c35',
-        borderWidth: 1,
-        borderColor: '#454a56',
-        justifyContent: 'center',
+        flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
     },
-
-    statValue: {
+    primaryActionText: {
+        fontSize: 13,
+        fontWeight: '800',
+        letterSpacing: 1.5,
+    },
+    primaryActionArrow: {
         fontSize: 18,
         fontWeight: '600',
     },
-
+    sectionHeader: {
+        marginTop: 36,
+        marginBottom: 14,
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        justifyContent: 'space-between',
+    },
+    sectionTitle: {
+        fontSize: 12,
+        fontWeight: '800',
+        letterSpacing: 1.5,
+    },
+    sectionMeta: {
+        fontSize: 10,
+        fontWeight: '600',
+        letterSpacing: 1.2,
+    },
+    bentoGrid: {
+        borderRadius: 12,
+        borderWidth: 1,
+        overflow: 'hidden',
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 1,
+    },
+    statCell: {
+        width: '33.1%',
+        flexGrow: 1,
+        paddingVertical: 18,
+        paddingHorizontal: 14,
+        justifyContent: 'space-between',
+    },
+    statTitle: {
+        fontSize: 10,
+        fontWeight: '600',
+        letterSpacing: 1,
+        marginBottom: 10,
+    },
+    statValue: {
+        fontSize: 24,
+        fontWeight: '700',
+        letterSpacing: -0.5,
+        fontVariant: ['tabular-nums'],
+        marginBottom: 4,
+    },
+    statUnit: {
+        fontSize: 9,
+        fontWeight: '600',
+        letterSpacing: 1.2,
+    },
 });
