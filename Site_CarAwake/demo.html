@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +9,7 @@
     <!-- MediaPipe Vision Tasks para navegador -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3"></script>
 </head>
+
 <body>
     <header>
         <div class="logo-text">
@@ -25,7 +27,8 @@
 
     <section class="demo-section">
         <h2>Demonstração ao <span>Vivo</span></h2>
-        <p class="subtitle">Permita o acesso à câmera para visualizar o rastreio facial e os pontos de referência em tempo real.</p>
+        <p class="subtitle">Permita o acesso à câmera para visualizar o rastreio facial e os pontos de referência em
+            tempo real.</p>
 
         <div class="camera-container">
             <!-- Vídeo da webcam (escondido ou sobreposto) -->
@@ -35,6 +38,12 @@
         </div>
 
         <div id="status-box" class="status-alert">A carregar modelo de Inteligência Artificial...</div>
+
+        <!-- Botão de Teste da API / Banco de Dados para a Feira -->
+        <div style="margin-top: 30px;">
+            <button onclick="enviarAlertaTeste()" class="btn-primary">Simular Detecção e Registar no MySQL</button>
+            <div id="api-feedback" style="margin-top: 15px; color: var(--text-gray); font-size: 0.95rem;"></div>
+        </div>
     </section>
 
     <footer>
@@ -43,5 +52,70 @@
 
     <!-- Script de lógica da câmara e MediaPipe -->
     <script type="module" src="js/demo.js"></script>
+
+    <!-- Script de Integração com a API REST -->
+    <script>
+        // Função para emitir um bipe sonoro de alerta temporário
+        function tocarAlertaSonoro() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime); // Frequência do bipe
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4); // Duração de 400ms
+            } catch (e) {
+                console.log("Áudio bloqueado pelo navegador até haver interação.");
+            }
+        }
+
+        async function enviarAlertaTeste() {
+            const feedback = document.getElementById('api-feedback');
+            const cameraContainer = document.querySelector('.camera-container');
+            
+            feedback.textContent = "A enviar dados para a API e MySQL...";
+            
+            // 1. Acionar efeitos visuais e sonoros temporários
+            tocarAlertaSonoro();
+            cameraContainer.classList.add('alerta-ativo');
+            
+            // Remove o brilho vermelho após 3 segundos
+            setTimeout(() => {
+                cameraContainer.classList.remove('alerta-ativo');
+            }, 3000);
+
+            try {
+                const resposta = await fetch('http://localhost:3000/api/alertas', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        tipo: 'Microssono detectado (Simulação)', 
+                        status: 'Alerta Sonoro Disparado' 
+                    })
+                });
+                
+                const dados = await resposta.json();
+                if (resposta.ok) {
+                    feedback.style.color = 'var(--accent-yellow)';
+                    feedback.textContent = `Sucesso! Alerta guardado no MySQL (ID: ${dados.id})`;
+                } else {
+                    feedback.style.color = '#ff4d4d';
+                    feedback.textContent = 'Erro ao registar na base de dados.';
+                }
+            } catch (e) {
+                console.error('Erro:', e);
+                feedback.style.color = '#ff4d4d';
+                feedback.textContent = 'Erro de ligação: Certifique-se de que o servidor Node.js (server.js) está aberto!';
+            }
+        }
+    </script>
 </body>
+
 </html>
